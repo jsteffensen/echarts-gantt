@@ -36,9 +36,36 @@ var _autoDataZoomAnimator;
 
 
 _rawData = rawData;
+addIndividualColours(_rawData);
+
+
 myChart.setOption(option = makeOption());
 initDrag();
 
+function addIndividualColours() {
+	colors = ['#1abc9c','#2ecc71','#3498db','#9b59b6',
+			  '#34495e','#16a085','#27ae60','#2980b9',
+			  '#8e44ad','#2c3e50','#f1c40f','#e67e22',
+			  '#e74c3c','#ecf0f1','#95a5a6','#f39c12',
+			  '#d35400','#c0392b','#bdc3c7','#7f8c8d'];
+			  
+	pointer = 0;
+	
+	//Add colour dimension
+	_rawData.flight.dimensions.push("Colours");
+	
+	//Iterate over flights and add new colour to each
+	for(i=0; i<_rawData.flight.data.length; i++) {
+
+		_rawData.flight.data[i].push(colors[pointer]);
+		
+		pointer++;
+		if(pointer>= colors.length) {
+			pointer = 0;
+		}
+	}
+	
+}
 
 function makeOption() {
     return {
@@ -156,7 +183,7 @@ function makeOption() {
             renderItem: renderAxisLabelItem,
             dimensions: _rawData.parkingApron.dimensions,
             encode: {
-                x: -1, // Then this series will not controlled by x.
+                x: -1, // -1 Then this series will not controlled by x.
                 y: 0
             },
             data: echarts.util.map(_rawData.parkingApron.data, function (item, index) {
@@ -186,8 +213,11 @@ function renderGanttItem(params, api) {
     var flightNumber = api.value(3) + '';
     var flightNumberWidth = echarts.format.getTextRect(flightNumber).width;
     var text = (barLength > flightNumberWidth + 40 && x + barLength >= 180)
-        ? flightNumber : '';
-
+        ? flightNumber : flightNumber; //show flightnumber regardless if it fits inside task bar.
+	
+	
+	var flightColour = api.value(10) + '';
+		
     var rectNormal = clipRectByRect(params, {
         x: x, y: y, width: barLength, height: barHeight
     });
@@ -204,7 +234,9 @@ function renderGanttItem(params, api) {
             type: 'rect',
             //ignore: !rectNormal,
             shape: rectNormal,
-            style: api.style({opacity: '0.6'})
+            style: api.style(
+				{opacity: '0.6', 
+				 fill: flightColour})
 /*        }, {
             type: 'rect',
             ignore: !rectVIP && !api.value(4),
@@ -423,7 +455,7 @@ function initDrag() {
         var movingItem = flightData[_draggingRecord.dataIndex];
 
         // Check conflict
-        /*for (var i = 0; i < flightData.length; i++) {
+        for (var i = 0; i < flightData.length; i++) {
             var dataItem = flightData[i];
             if (dataItem !== movingItem
                 && _dropRecord.categoryIndex === dataItem[DIM_CATEGORY_INDEX]
@@ -433,7 +465,7 @@ function initDrag() {
                 alert('Conflict! Find a free space to settle the bar!');
                 return;
             }
-        }*/
+        }
 
         // No conflict.
         movingItem[DIM_CATEGORY_INDEX] = _dropRecord.categoryIndex;
