@@ -243,19 +243,20 @@ function renderGanttItem(params, api) {
             style: api.style(
 				{opacity: '0.6', 
 				 fill: flightColour})
-/*        }, {
+        }, /*{
             type: 'rect',
             ignore: !rectVIP && !api.value(4),
             shape: rectVIP,
             //style: api.style({fill: '#ddb30b'})
-			style: api.style({fill: '#000'})*/
-        }, {
+
+        },*/ {
             type: 'rect',
             ignore: !rectText,
             shape: rectText,
             style: api.style({
                 fill: 'transparent',
                 stroke: 'transparent',
+				textStroke: flightColour,
                 text: text,
                 textFill: '#fff'
             })
