@@ -8,39 +8,41 @@
        <script type="text/javascript" src="echarts.min.js"></script>
 	   <script type="text/javascript" src="airport-schedule.js"></script>
        <script type="text/javascript">
-var dom = document.getElementById("container");
-var myChart = echarts.init(dom, null, {renderer: 'svg'});
-var app = {};
-option = null;
-var HEIGHT_RATIO = 0.6;
-var DIM_CATEGORY_INDEX = 0;
-var DIM_TIME_ARRIVAL = 1;
-var DIM_TIME_DEPARTURE = 2;
-var DATA_ZOOM_AUTO_MOVE_THROTTLE = 30;
-var DATA_ZOOM_X_INSIDE_INDEX = 1;
-var DATA_ZOOM_Y_INSIDE_INDEX = 3;
-var DATA_ZOOM_AUTO_MOVE_SPEED = 0.2;
-var DATA_ZOOM_AUTO_MOVE_DETECT_AREA_WIDTH = 30;
+	   
+			var dom = document.getElementById("container");
+			var myChart = echarts.init(dom, null, {renderer: 'svg'});
+			var app = {};
+			option = null;
+			var HEIGHT_RATIO = 0.6;
+			var DIM_CATEGORY_INDEX = 0;
+			var DIM_TIME_ARRIVAL = 1;
+			var DIM_TIME_DEPARTURE = 2;
+			var DATA_ZOOM_AUTO_MOVE_THROTTLE = 30;
+			var DATA_ZOOM_X_INSIDE_INDEX = 1;
+			var DATA_ZOOM_Y_INSIDE_INDEX = 3;
+			var DATA_ZOOM_AUTO_MOVE_SPEED = 0.2;
+			var DATA_ZOOM_AUTO_MOVE_DETECT_AREA_WIDTH = 30;
 
-var _draggable;
-var _draggingEl;
-var _dropShadow;
-var _draggingCursorOffset = [0, 0];
-var _draggingTimeLength;
-var _draggingRecord;
-var _dropRecord;
-var _cartesianXBounds = [];
-var _cartesianYBounds = [];
-var _rawData;
-var _autoDataZoomAnimator;
-
-
-_rawData = rawData;
-addIndividualColours(_rawData);
+			var _draggable;
+			var _draggingEl;
+			var _dropShadow;
+			var _draggingCursorOffset = [0, 0];
+			var _draggingTimeLength;
+			var _draggingRecord;
+			var _dropRecord;
+			var _cartesianXBounds = [];
+			var _cartesianYBounds = [];
+			var _rawData;
+			var _autoDataZoomAnimator;
 
 
-myChart.setOption(option = makeOption());
-initDrag();
+			_rawData = rawData;
+			addIndividualColours(_rawData);
+
+
+			myChart.setOption(option = makeOption());
+
+			initDrag();
 
 function addIndividualColours() {
 	colors = ['#1abc9c','#2ecc71','#3498db','#9b59b6',
@@ -200,6 +202,7 @@ function makeOption() {
 }
 
 function renderGanttItem(params, api) {
+console.log(api);
     var categoryIndex = api.value(DIM_CATEGORY_INDEX);
     var timeArrival = api.coord([api.value(DIM_TIME_ARRIVAL), categoryIndex]);
     var timeDeparture = api.coord([api.value(DIM_TIME_DEPARTURE), categoryIndex]);
@@ -238,10 +241,9 @@ function renderGanttItem(params, api) {
         type: 'group',
         children: [{
             type: 'rect',
-            //ignore: !rectNormal,
             shape: rectNormal,
             style: api.style(
-				{opacity: '0.6', 
+				{opacity: '0.7', 
 				 fill: flightColour})
         }, /*{
             type: 'rect',
@@ -253,13 +255,14 @@ function renderGanttItem(params, api) {
             type: 'rect',
             ignore: !rectText,
             shape: rectText,
-            style: api.style({
+            style: {
                 fill: 'transparent',
                 stroke: 'transparent',
-				textStroke: flightColour,
                 text: text,
-                textFill: '#fff'
-            })
+                textFill: '#fff',
+				fontFamily: 'Microsoft YaHei',
+				textBorderColor: flightColour
+            }
         }]
     };
 }
@@ -478,7 +481,7 @@ function initDrag() {
         var movingItem = flightData[_draggingRecord.dataIndex];
 
         // Check conflict
-        for (var i = 0; i < flightData.length; i++) {
+        /*for (var i = 0; i < flightData.length; i++) {
             var dataItem = flightData[i];
             if (dataItem !== movingItem
                 && _dropRecord.categoryIndex === dataItem[DIM_CATEGORY_INDEX]
@@ -488,7 +491,7 @@ function initDrag() {
                 alert('Conflict! Find a free space to settle the bar!');
                 return;
             }
-        }
+        }*/
 
         // No conflict.
         movingItem[DIM_CATEGORY_INDEX] = _dropRecord.categoryIndex;
