@@ -69,7 +69,13 @@ function addIndividualColours() {
 
 function makeOption() {
     return {
+		// custom html for tooltip
         tooltip: {
+			trigger: 'item',
+			formatter: function (params) {
+				tooltipContent = '<div style="line-height: 60%;"><p>' + params.data[3] + '</p><p>' + params.data[4] + '</p></div>';
+				return tooltipContent;
+			} 
         },
         animation: false,
         toolbox: {
