@@ -11,38 +11,30 @@
 	   
 			var dom = document.getElementById("container");
 			var myChart = echarts.init(dom, null, {renderer: 'svg'});
-			var app = {};
-			option = null;
+
 			var HEIGHT_RATIO = 0.6;
-			var DIM_CATEGORY_INDEX = 0;
+			//var DIM_GROUP_INDEX = 0;
+			var DIM_GROUP_INDEX = 12;
 			var DIM_TIME_ARRIVAL = 1;
 			var DIM_TIME_DEPARTURE = 2;
-			var DATA_ZOOM_AUTO_MOVE_THROTTLE = 30;
-			var DATA_ZOOM_X_INSIDE_INDEX = 1;
-			var DATA_ZOOM_Y_INSIDE_INDEX = 3;
-			var DATA_ZOOM_AUTO_MOVE_SPEED = 0.2;
-			var DATA_ZOOM_AUTO_MOVE_DETECT_AREA_WIDTH = 30;
 
-			var _draggable;
-			var _draggingEl;
-			var _dropShadow;
-			var _draggingCursorOffset = [0, 0];
-			var _draggingTimeLength;
-			var _draggingRecord;
-			var _dropRecord;
+
 			var _cartesianXBounds = [];
 			var _cartesianYBounds = [];
 			var _rawData;
-			var _autoDataZoomAnimator;
-
 
 			_rawData = rawData;
-			addIndividualColours(_rawData);
-
-
+			var X_SERIES = _rawData.flight;
+			
+			addIndividualColours();
+			makeYaxisDimension();
+			
+			//var Y_SERIES = _rawData.parkingApron;
+			var Y_SERIES = _rawData.yAxisData;
+			
 			myChart.setOption(option = makeOption());
 
-			initDrag();
+			setHandlers();
 
 function addIndividualColours() {
 	colors = ['#1abc9c','#2ecc71','#3498db','#9b59b6',
@@ -54,12 +46,12 @@ function addIndividualColours() {
 	pointer = 0;
 	
 	//Add colour dimension
-	_rawData.flight.dimensions.push("Colours");
+	X_SERIES.dimensions.push("Colours");
 	
 	//Iterate over flights and add new colour to each
-	for(i=0; i<_rawData.flight.data.length; i++) {
+	for(i=0; i<X_SERIES.data.length; i++) {
 
-		_rawData.flight.data[i].push(colors[pointer]);
+		X_SERIES.data[i].push(colors[pointer]);
 		
 		pointer++;
 		if(pointer>= colors.length) {
@@ -69,13 +61,65 @@ function addIndividualColours() {
 	
 }
 
+function makeYaxisDimension() {
+
+	//add dimension to group by
+	X_SERIES.dimensions.push("groupBy");
+	groupByDimension = X_SERIES.dimensions.length-1;
+	X_SERIES.dimensions.push("groupIndex");
+	groupIndex = X_SERIES.dimensions.length-1;
+	
+	for(i=0; i<X_SERIES.data.length; i++) {
+		X_SERIES.data[i].push('group'+X_SERIES.data[i][0]);
+	}
+
+	yAxisData = {};
+	yAxisData.dimensions = ["Name", "Type", "Near Bridge"];
+	yAxisData.data = [];
+	
+	singles = [];
+	
+	for(j=0; j<X_SERIES.data.length; j++) {
+		
+		//get index
+		index = singles.indexOf(X_SERIES.data[j][groupByDimension]);
+		
+		if(index > -1) {
+			
+			//group already exists - overwrite index in first column of flight data
+			//TODO: add index pointer to end of flight data item
+			X_SERIES.data[j].push(index);
+			
+		} else {
+			//group has not been indexed on yAxis yet
+			singles.push(X_SERIES.data[j][groupByDimension]);
+			yAxisData.data.push( [X_SERIES.data[j][groupByDimension], '-', '-'] );
+			// try again - we just added it
+			X_SERIES.data[j].push(singles.indexOf(X_SERIES.data[j][groupByDimension]));
+		}
+		
+	}
+
+	_rawData.yAxisData = yAxisData;
+}
+
 function makeOption() {
     return {
 		// custom html for tooltip
         tooltip: {
 			trigger: 'item',
 			formatter: function (params) {
-				tooltipContent = '<div style="line-height: 60%;"><p>' + params.data[3] + '</p><p>' + params.data[4] + '</p></div>';
+			
+				var optionDate = { year: 'numeric', month: 'long', day: 'numeric'};
+				var optionTime = { hour: '2-digit', minute:  '2-digit'};
+
+				endDateOnlyIfDifferent = new Date(params.data[1]).toLocaleDateString('da-DK', optionDate) == new Date(params.data[2]).toLocaleDateString('da-DK', optionDate) ? '' : ' - ' + new Date(params.data[2]).toLocaleDateString('da-DK', optionDate);
+				tooltipContent = '<div style="line-height: 60%;"><p>' + 
+					new Date(params.data[1]).toLocaleDateString('da-DK', optionDate) + endDateOnlyIfDifferent + 
+					'</p><p>' + new Date(params.data[1]).toLocaleTimeString('da-DK', optionTime) + 
+					' - ' + new Date(params.data[2]).toLocaleTimeString('da-DK', optionTime) + 
+					'</p></div>';
+				
 				return tooltipContent;
 			} 
         },
@@ -159,28 +203,28 @@ function makeOption() {
             axisLine: {show: true},
             axisLabel: {show: false},
             min: 0,
-            max: _rawData.parkingApron.data.length
+            max: Y_SERIES.data.length
         },
         series: [{
             id: 'flightData',
             type: 'custom',
             renderItem: renderGanttItem,
-            dimensions: _rawData.flight.dimensions,
+            dimensions: X_SERIES.dimensions,
             encode: {
                 x: [DIM_TIME_ARRIVAL, DIM_TIME_DEPARTURE],
-                y: DIM_CATEGORY_INDEX,
-                tooltip: [DIM_CATEGORY_INDEX, DIM_TIME_ARRIVAL, DIM_TIME_DEPARTURE]
+                y: DIM_GROUP_INDEX,
+                tooltip: [DIM_GROUP_INDEX, DIM_TIME_ARRIVAL, DIM_TIME_DEPARTURE]
             },
-            data: _rawData.flight.data
+            data: X_SERIES.data
         }, {
             type: 'custom',
             renderItem: renderAxisLabelItem,
-            dimensions: _rawData.parkingApron.dimensions,
+            dimensions: Y_SERIES.dimensions,
             encode: {
                 x: -1, // -1 Then this series will not controlled by x.
                 y: 0
             },
-            data: echarts.util.map(_rawData.parkingApron.data, function (item, index) {
+            data: echarts.util.map(Y_SERIES.data, function (item, index) {
                 return [index].concat(item);
             })
         }]
@@ -188,8 +232,8 @@ function makeOption() {
 }
 
 function renderGanttItem(params, api) {
-console.log(api);
-    var categoryIndex = api.value(DIM_CATEGORY_INDEX);
+
+    var categoryIndex = api.value(DIM_GROUP_INDEX);
     var timeArrival = api.coord([api.value(DIM_TIME_ARRIVAL), categoryIndex]);
     var timeDeparture = api.coord([api.value(DIM_TIME_DEPARTURE), categoryIndex]);
 
@@ -282,7 +326,7 @@ function renderAxisLabelItem(params, api) {
         }, {
             type: 'text',
             style: {
-                x: 24,
+                x: 35,
                 y: -3,
                 text: api.value(1),
                 textVerticalAlign: 'bottom',
@@ -333,15 +377,13 @@ function onDragSwitchClick(model, api, type) {
     this.model.setIconStatus(type, _draggable ? 'emphasis' : 'normal');
 }
 
-function initDrag() {
-
-    _autoDataZoomAnimator = makeAnimator(dispatchDataZoom);
+function setHandlers() {
 
 	myChart.on('click', function (param) {
 
         _selectRecord = {
             dataIndex: param.dataIndex,
-            categoryIndex: param.value[DIM_CATEGORY_INDEX],
+            categoryIndex: param.value[DIM_GROUP_INDEX],
             timeArrival: param.value[DIM_TIME_ARRIVAL],
             timeDeparture: param.value[DIM_TIME_DEPARTURE]
         };
@@ -349,237 +391,8 @@ function initDrag() {
         alert(_rawData.flight.data[_selectRecord.dataIndex]);
         
     });
-	
-    myChart.on('mousedown', function (param) {
-        if (!_draggable || !param || param.seriesIndex == null) {
-            return;
-        }
 
-        // Drag start
-        _draggingRecord = {
-            dataIndex: param.dataIndex,
-            categoryIndex: param.value[DIM_CATEGORY_INDEX],
-            timeArrival: param.value[DIM_TIME_ARRIVAL],
-            timeDeparture: param.value[DIM_TIME_DEPARTURE]
-        };
-        var style = {lineWidth: 2, fill: 'rgba(255,0,0,0.1)', stroke: 'rgba(255,0,0,0.8)', lineDash: [6, 3]};
 
-        _draggingEl = addOrUpdateBar(_draggingEl, _draggingRecord, style, 100);
-        _draggingCursorOffset = [
-            _draggingEl.position[0] - param.event.offsetX,
-            _draggingEl.position[1] - param.event.offsetY
-        ];
-        _draggingTimeLength = _draggingRecord.timeDeparture - _draggingRecord.timeArrival;
-    });
-
-    myChart.getZr().on('mousemove', function (event) {
-        if (!_draggingEl) {
-            return;
-        }
-
-        var cursorX = event.offsetX;
-        var cursorY = event.offsetY;
-
-        // Move _draggingEl.
-        _draggingEl.attr('position', [
-            _draggingCursorOffset[0] + cursorX,
-            _draggingCursorOffset[1] + cursorY,
-        ]);
-
-        prepareDrop();
-
-        autoDataZoomWhenDraggingOutside(cursorX, cursorY);
-    });
-
-    myChart.getZr().on('mouseup', function () {
-        // Drop
-        if (_draggingEl && _dropRecord) {
-
-            updateRawData() && myChart.setOption({
-                series: {
-                    id: 'flightData',
-                    data: _rawData.flight.data
-                }
-            });
-        }
-        dragRelease();
-    });
-    myChart.getZr().on('globalout', dragRelease);
-
-    function dragRelease() {
-        _autoDataZoomAnimator.stop();
-
-        if (_draggingEl) {
-            myChart.getZr().remove(_draggingEl);
-            _draggingEl = null;
-        }
-        if (_dropShadow) {
-            myChart.getZr().remove(_dropShadow);
-            _dropShadow = null;
-        }
-        _dropRecord = _draggingRecord = null;
-    }
-
-    function addOrUpdateBar(el, itemData, style, z) {
-        var pointArrival = myChart.convertToPixel('grid', [itemData.timeArrival, itemData.categoryIndex]);
-        var pointDeparture = myChart.convertToPixel('grid', [itemData.timeDeparture, itemData.categoryIndex]);
-
-        var barLength = pointDeparture[0] - pointArrival[0];
-        var barHeight = Math.abs(
-            myChart.convertToPixel('grid', [0, 0])[1] - myChart.convertToPixel('grid', [0, 1])[1]
-        ) * HEIGHT_RATIO;
-
-        if (!el) {
-            el = new echarts.graphic.Rect({
-                shape: {x: 0, y: 0, width: 0, height: 0},
-                style: style,
-                z: z
-            });
-            myChart.getZr().add(el);
-        }
-        el.attr({
-            shape: {x: 0, y: 0, width: barLength, height: barHeight},
-            position: [pointArrival[0], pointArrival[1] - barHeight]
-        });
-        return el;
-    }
-
-    function prepareDrop() {
-        // Check droppable place.
-        var xPixel = _draggingEl.shape.x + _draggingEl.position[0];
-        var yPixel = _draggingEl.shape.y + _draggingEl.position[1];
-        var cursorData = myChart.convertFromPixel('grid', [xPixel, yPixel]);
-        if (cursorData) {
-            // Make drop shadow and _dropRecord
-            _dropRecord = {
-                categoryIndex: Math.floor(cursorData[1]),
-                timeArrival: cursorData[0],
-                timeDeparture: cursorData[0] + _draggingTimeLength
-            };
-            var style = {fill: 'rgba(0,0,0,0.4)'};
-            _dropShadow = addOrUpdateBar(_dropShadow, _dropRecord, style, 99);
-        }
-    }
-
-    // This is some business logic, don't care about it.
-    function updateRawData() {
-        var flightData = _rawData.flight.data;
-        var movingItem = flightData[_draggingRecord.dataIndex];
-
-        // Check conflict
-        /*for (var i = 0; i < flightData.length; i++) {
-            var dataItem = flightData[i];
-            if (dataItem !== movingItem
-                && _dropRecord.categoryIndex === dataItem[DIM_CATEGORY_INDEX]
-                && _dropRecord.timeArrival < dataItem[DIM_TIME_DEPARTURE]
-                && _dropRecord.timeDeparture > dataItem[DIM_TIME_ARRIVAL]
-            ) {
-                alert('Conflict! Find a free space to settle the bar!');
-                return;
-            }
-        }*/
-
-        // No conflict.
-        movingItem[DIM_CATEGORY_INDEX] = _dropRecord.categoryIndex;
-        movingItem[DIM_TIME_ARRIVAL] = _dropRecord.timeArrival;
-        movingItem[DIM_TIME_DEPARTURE] = _dropRecord.timeDeparture;
-        return true;
-    }
-
-    function autoDataZoomWhenDraggingOutside(cursorX, cursorY) {
-        // When cursor is outside the cartesian and being dragging,
-        // auto move the dataZooms.
-        var cursorDistX = getCursorCartesianDist(cursorX, _cartesianXBounds);
-        var cursorDistY = getCursorCartesianDist(cursorY, _cartesianYBounds);
-
-        if (cursorDistX !== 0 || cursorDistY !== 0) {
-            _autoDataZoomAnimator.start({
-                cursorDistX: cursorDistX,
-                cursorDistY: cursorDistY
-            });
-        }
-        else {
-            _autoDataZoomAnimator.stop();
-        }
-    }
-
-    function dispatchDataZoom(params) {
-        var option = myChart.getOption();
-        var optionInsideX = option.dataZoom[DATA_ZOOM_X_INSIDE_INDEX];
-        var optionInsideY = option.dataZoom[DATA_ZOOM_Y_INSIDE_INDEX];
-        var batch = [];
-
-        prepareBatch(batch, 'insideX', optionInsideX.start, optionInsideX.end, params.cursorDistX);
-        prepareBatch(batch, 'insideY', optionInsideY.start, optionInsideY.end, -params.cursorDistY);
-
-        batch.length && myChart.dispatchAction({
-            type: 'dataZoom',
-            batch: batch
-        });
-
-        function prepareBatch(batch, id, start, end, cursorDist) {
-            if (cursorDist === 0) {
-                return;
-            }
-            var sign = cursorDist / Math.abs(cursorDist);
-            var size = end - start;
-            var delta = DATA_ZOOM_AUTO_MOVE_SPEED * sign;
-
-            start += delta;
-            end += delta;
-
-            if (end > 100) {
-                end = 100;
-                start = end - size;
-            }
-            if (start < 0) {
-                start = 0;
-                end = start + size;
-            }
-            batch.push({
-                dataZoomId: id,
-                start: start,
-                end: end
-            });
-        }
-    }
-
-    function getCursorCartesianDist(cursorXY, bounds) {
-        var dist0 = cursorXY - (bounds[0] + DATA_ZOOM_AUTO_MOVE_DETECT_AREA_WIDTH);
-        var dist1 = cursorXY - (bounds[1] - DATA_ZOOM_AUTO_MOVE_DETECT_AREA_WIDTH);
-        return dist0 * dist1 <= 0
-            ? 0 // cursor is in cartesian
-            : dist0 < 0
-            ? dist0 // cursor is at left/top of cartesian
-            : dist1; // cursor is at right/bottom of cartesian
-    }
-
-    function makeAnimator(callback) {
-        var requestId;
-        var callbackParams;
-        // Use throttle to prevent from calling dispatchAction frequently.
-        callback = echarts.throttle(callback, DATA_ZOOM_AUTO_MOVE_THROTTLE);
-
-        function onFrame() {
-            callback(callbackParams);
-            requestId = requestAnimationFrame(onFrame);
-        }
-
-        return {
-            start: function (params) {
-                callbackParams = params;
-                if (requestId == null) {
-                    onFrame();
-                }
-            },
-            stop: function () {
-                if (requestId != null) {
-                    cancelAnimationFrame(requestId);
-                }
-                requestId = callbackParams = null;
-            }
-        };
-    }
 };
 
        </script>
