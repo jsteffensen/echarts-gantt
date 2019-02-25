@@ -13,11 +13,9 @@
 			var myChart = echarts.init(dom, null, {renderer: 'svg'});
 
 			var HEIGHT_RATIO = 0.6;
-			//var DIM_GROUP_INDEX = 0;
-			var DIM_GROUP_INDEX = 12;
+			var DIM_GROUP_INDEX;
 			var DIM_TIME_ARRIVAL = 1;
 			var DIM_TIME_DEPARTURE = 2;
-
 
 			var _cartesianXBounds = [];
 			var _cartesianYBounds = [];
@@ -29,7 +27,6 @@
 			addIndividualColours();
 			makeYaxisDimension();
 			
-			//var Y_SERIES = _rawData.parkingApron;
 			var Y_SERIES = _rawData.yAxisData;
 			
 			myChart.setOption(option = makeOption());
@@ -68,6 +65,7 @@ function makeYaxisDimension() {
 	groupByDimension = X_SERIES.dimensions.length-1;
 	X_SERIES.dimensions.push("groupIndex");
 	groupIndex = X_SERIES.dimensions.length-1;
+	DIM_GROUP_INDEX = groupIndex;
 	
 	for(i=0; i<X_SERIES.data.length; i++) {
 		X_SERIES.data[i].push('group'+X_SERIES.data[i][0]);
@@ -77,12 +75,12 @@ function makeYaxisDimension() {
 	yAxisData.dimensions = ["Name", "Type", "Near Bridge"];
 	yAxisData.data = [];
 	
-	singles = [];
+	uniques = [];
 	
 	for(j=0; j<X_SERIES.data.length; j++) {
 		
 		//get index
-		index = singles.indexOf(X_SERIES.data[j][groupByDimension]);
+		index = uniques.indexOf(X_SERIES.data[j][groupByDimension]);
 		
 		if(index > -1) {
 			
@@ -92,10 +90,10 @@ function makeYaxisDimension() {
 			
 		} else {
 			//group has not been indexed on yAxis yet
-			singles.push(X_SERIES.data[j][groupByDimension]);
+			uniques.push(X_SERIES.data[j][groupByDimension]);
 			yAxisData.data.push( [X_SERIES.data[j][groupByDimension], '-', '-'] );
 			// try again - we just added it
-			X_SERIES.data[j].push(singles.indexOf(X_SERIES.data[j][groupByDimension]));
+			X_SERIES.data[j].push(uniques.indexOf(X_SERIES.data[j][groupByDimension]));
 		}
 		
 	}
